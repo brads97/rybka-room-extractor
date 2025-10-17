@@ -14,7 +14,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
+# Force light theme to prevent white text
+st.markdown("""
+<script>
+    window.parent.document.querySelector('body').setAttribute('data-theme', 'light');
+</script>
+""", unsafe_allow_html=True)
 # ========== CUSTOM CSS (RYBKA THEME) ==========
 st.markdown("""
 <style>
@@ -30,21 +35,12 @@ st.markdown("""
     .main h3 {
         color: #003D7A;
         font-weight: 600;
-    }   
-                
+    }       
     /* Main container */
     .main {
         background-color: #F5F7FA;
     }
-    /* Specifically target file upload links */
-    [data-testid="stFileUploader"] a {
-        color: #003D7A !important;
-        font-weight: 500;
-    }
-
-    [data-testid="stFileUploader"] a:hover {
-        color: #0066CC !important;
-    }
+    
     /* Header styling */
     .rybka-header {
         background: linear-gradient(135deg, #003D7A 0%, #0066CC 100%);
