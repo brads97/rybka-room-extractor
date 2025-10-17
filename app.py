@@ -110,14 +110,17 @@ st.markdown("""
     .stSuccess {
         background-color: #E8F8F5;
         border-left: 4px solid #28B463;
+    }
+    
+    .stSuccess p, .stSuccess div, .stSuccess span, .stSuccess strong {
         color: #000000 !important;
     }
     
-    .stSuccess p {
+    .stAlert p, .stAlert div, .stAlert span {
         color: #000000 !important;
     }
     
-    .stSuccess div {
+    [data-testid="stNotification"] p, [data-testid="stNotification"] div {
         color: #000000 !important;
     }
     
