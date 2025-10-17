@@ -479,11 +479,17 @@ def main():
     # Add file size limit warning
     st.info("💡 **File size limit:** 10MB per PDF. Larger files may cause errors.")
     
+    # Add a unique key and clear cache button
+    if st.button("🔄 Clear Upload Cache", help="Click if uploads are failing"):
+        st.cache_data.clear()
+        st.rerun()
+    
     uploaded_files = st.file_uploader(
         "Choose PDF files",
         type=['pdf'],
         accept_multiple_files=True,
-        help="Upload one or more architectural floor plan PDFs (max 10MB each)"
+        help="Upload one or more architectural floor plan PDFs (max 10MB each)",
+        key="pdf_uploader"
     )
     
     if uploaded_files and api_key:
