@@ -107,6 +107,19 @@ st.markdown("""
         border-radius: 8px;
         padding: 1rem;
     }
+
+    /* Uploaded file name styling */
+    .uploadedFile div[data-testid="stMarkdownContainer"] {
+        color: #003D7A;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    /* File size text */
+    .uploadedFile small {
+        color: #4A5568;
+        font-size: 0.85rem;
+    }
     
     /* Progress styling */
     .stProgress > div > div {
