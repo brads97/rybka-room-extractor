@@ -516,108 +516,109 @@ def main():
         st.success(f"✅ **File ready:** {uploaded_files[0].name}")
         
         if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
-            if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
-                if not api_key or api_key == "":
-                    st.error("❌ API key not configured. Please contact your administrator.")
-                    st.stop()
+            if not api_key or api_key == "":
+                st.error("❌ API key not configured. Please contact your administrator.")
+                st.stop()
                 
-                # Prevent double-clicking
-                if st.session_state.processing:
-                    st.warning("⏳ Already processing... please wait")
-                    st.stop()
+            # Prevent double-clicking
+            if st.session_state.processing:
+                st.warning("⏳ Already processing... please wait")
+                st.stop()
                 
-                st.session_state.processing = True
-                
-                try:
-                    client = anthropic.Anthropic(api_key=api_key)
-                    all_rooms = []
+            st.session_state.processing = True
+            
+            try:
+                client = anthropic.Anthropic(api_key=api_key)
+                all_rooms = []
                     
-                    # Process single file
-                    files_to_process = [{
-                        'name': uploaded_files[0].name,
-                        'bytes': uploaded_files[0].read()
+                 # Process single file
+                files_to_process = [{
+                    'name': uploaded_files[0].name,
+                    'bytes': uploaded_files[0].read()
                     }]
                     
-                    progress_bar = st.progress(0, text="Starting extraction...")
-                    status_text = st.empty()
                     
-                    for idx, file_data in enumerate(files_to_process):
-                        status_text.markdown(f"**Processing:** {file_data['name']}")
+                progress_bar = st.progress(0, text="Starting extraction...")
+                status_text = st.empty()
+                    
+                for idx, file_data in enumerate(files_to_process):
+                    status_text.markdown(f"**Processing:** {file_data['name']}")
                         
-                        try:
-                            pdf_bytes = file_data['bytes']
+                    try:
+                        pdf_bytes = file_data['bytes']
                             
-                            if len(pdf_bytes) == 0:
-                                st.error(f"❌ {file_data['name']} is empty or corrupted")
-                                continue
-                            
-                            progress_bar.progress(0.2, text="Extracting text from PDF...")
-                            text_items = extract_text_with_coordinates(pdf_bytes)
-                            
-                            if len(text_items) == 0:
-                                st.warning(f"⚠️ No text found in {file_data['name']}")
-                                continue
-                            
-                            # Get floor level
-                            progress_bar.progress(0.4, text="Identifying floor level...")
-                            floor_level = extract_floor_level(text_items, client)
-                            
-                            # Group rooms
-                            progress_bar.progress(0.6, text="Grouping room data with AI...")
-                            rooms = group_text_with_claude(text_items, client)
-                            
-                            # Add floor level
-                            for room in rooms:
-                                room["level"] = floor_level
-                            
-                            all_rooms.extend(rooms)
-                            progress_bar.progress(1.0, text="Complete!")
-                            
-                        except Exception as file_error:
-                            st.error(f"❌ Error processing {file_data['name']}: {str(file_error)}")
-                            import traceback
-                            st.code(traceback.format_exc())
+                        if len(pdf_bytes) == 0:
+                            st.error(f"❌ {file_data['name']} is empty or corrupted")
                             continue
-                    
-                    status_text.empty()
-                    progress_bar.empty()
-                    
-                    # Create Excel
-                    st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
+                            
+                        progress_bar.progress(0.2, text="Extracting text from PDF...")
+                        text_items = extract_text_with_coordinates(pdf_bytes)
+                            
+                        if len(text_items) == 0:
+                            st.warning(f"⚠️ No text found in {file_data['name']}")
+                            continue
+                            
+                        # Get floor level
+                        progress_bar.progress(0.4, text="Identifying floor level...")
+                        floor_level = extract_floor_level(text_items, client)
+                            
+                        # Group rooms
+                        progress_bar.progress(0.6, text="Grouping room data with AI...")
+                        rooms = group_text_with_claude(text_items, client)
+                            
+                        # Add floor level
+                        for room in rooms:
+                            room["level"] = floor_level
+                            
+                        all_rooms.extend(rooms)
+                        progress_bar.progress(1.0, text="Complete!")
+                            
+                    except Exception as file_error:
+                        st.error(f"❌ Error processing {file_data['name']}: {str(file_error)}")
+                        import traceback
+                        st.code(traceback.format_exc())
+                        continue
                 
-                    # Show preview
-                    st.markdown("### 📋 Preview")
-                    preview_data = []
-                    for room in all_rooms[:10]:
-                        preview_data.append({
-                            "Level": room.get("level", ""),
-                            "Room Name": room.get("room_name", ""),
-                            "Room Type": room.get("space_type", ""),
-                            "Area": room.get("area", "")
-                        })
-                    st.dataframe(preview_data, use_container_width=True)
+                status_text.empty()
+                progress_bar.empty()
                     
-                    if len(all_rooms) > 10:
-                        st.info(f"Showing 10 of {len(all_rooms)} rooms")
+                # Create Excel
+                st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
+                
+                # Show preview
+                st.markdown("### 📋 Preview")
+                preview_data = []
+                for room in all_rooms[:10]:
+                    preview_data.append({
+                        "Level": room.get("level", ""),
+                        "Room Name": room.get("room_name", ""),
+                        "Room Type": room.get("space_type", ""),
+                        "Area": room.get("area", "")
+                        
+                    })
+                st.dataframe(preview_data, use_container_width=True)
                     
-                    # Download button
-                    excel_file = create_excel(all_rooms)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                if len(all_rooms) > 10:
+                    st.info(f"Showing 10 of {len(all_rooms)} rooms")
                     
-                    st.download_button(
-                        label="📥 Download Excel File",
-                        data=excel_file,
-                        file_name=f"room_data_{timestamp}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
+                # Download button
+                excel_file = create_excel(all_rooms)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
-                    import traceback
-                    st.code(traceback.format_exc())
-                finally:
-                    st.session_state.processing = False
+                st.download_button(
+                    label="📥 Download Excel File",
+                    data=excel_file,
+                    file_name=f"room_data_{timestamp}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                    
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+            finally:
+                st.session_state.processing = False
     
     elif uploaded_files and not api_key:
         st.warning("⚠️ Please enter your Claude API key in the Configuration section above")
@@ -631,3 +632,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
