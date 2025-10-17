@@ -36,7 +36,15 @@ st.markdown("""
     .main {
         background-color: #F5F7FA;
     }
-    
+    /* Specifically target file upload links */
+    [data-testid="stFileUploader"] a {
+        color: #003D7A !important;
+        font-weight: 500;
+    }
+
+    [data-testid="stFileUploader"] a:hover {
+        color: #0066CC !important;
+    }
     /* Header styling */
     .rybka-header {
         background: linear-gradient(135deg, #003D7A 0%, #0066CC 100%);
@@ -101,23 +109,12 @@ st.markdown("""
         box-shadow: 0 6px 12px rgba(0, 61, 122, 0.3);
     }
     
-    /* File uploader - fix layering */
-    section[data-testid="stFileUploader"] > div {
-        position: relative;
-        z-index: 1;
+    /* File uploader */
+    .uploadedFile {
+        border: 2px dashed #0066CC;
+        border-radius: 8px;
+        padding: 1rem;
     }
-
-    /* Make sure text is on top */
-    section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] {
-        position: relative;
-        z-index: 10;
-        color: #003D7A;
-    }
-
-/* Or remove the white overlay background entirely */
-section[data-testid="stFileUploader"] > div > div > div {
-    background: transparent !important;
-}
     
     /* Progress styling */
     .stProgress > div > div {
