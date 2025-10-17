@@ -476,21 +476,28 @@ def main():
     # File upload
     st.markdown("### 📤 Upload Floor Plans")
     
-    # Add file size limit warning
-    st.info("💡 **File size limit:** 10MB per PDF. Larger files may cause errors.")
+    st.markdown("""
+    <div style="background-color: #FFF3CD; padding: 1rem; border-radius: 6px; border-left: 4px solid #FFC107; margin-bottom: 1rem;">
+        <p style="margin: 0; color: #856404; font-weight: 500;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Add a unique key and clear cache button
-    if st.button("🔄 Clear Upload Cache", help="Click if uploads are failing"):
+    # Reset button
+    if st.button("🔄 Reset Uploader", help="Click if uploads are failing"):
         st.cache_data.clear()
+        st.session_state.clear()
         st.rerun()
     
-    uploaded_files = st.file_uploader(
-        "Choose PDF files",
+    # Single file uploader (more reliable)
+    uploaded_file = st.file_uploader(
+        "Choose a PDF file",
         type=['pdf'],
-        accept_multiple_files=True,
-        help="Upload one or more architectural floor plan PDFs (max 10MB each)",
+        help="Upload one architectural floor plan PDF",
         key="pdf_uploader"
     )
+    
+    # Convert to list for compatibility with existing code
+    uploaded_files = [uploaded_file] if uploaded_file else []
     
     if uploaded_files and api_key:
         # Check file sizes
@@ -506,70 +513,77 @@ def main():
             st.error(f"❌ The following files are too large (max 10MB):\n" + "\n".join([f"- {f}" for f in oversized_files]))
             st.stop()
         
-        st.markdown(f"**{len(uploaded_files)} file(s) uploaded**")
+        st.success(f"✅ **File ready:** {uploaded_files[0].name}")
         
-        if st.button("🚀 Extract Room Data", use_container_width=True):
-            if not api_key or api_key == "":
-                st.error("❌ API key not configured. Please contact your administrator.")
-                st.stop()
-            
-            # Prevent double-clicking
-            if st.session_state.processing:
-                st.warning("⏳ Already processing... please wait")
-                st.stop()
-            
-            st.session_state.processing = True
-            
-            try:
-                client = anthropic.Anthropic(api_key=api_key)
-                all_rooms = []
+        if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
+            if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
+                if not api_key or api_key == "":
+                    st.error("❌ API key not configured. Please contact your administrator.")
+                    st.stop()
                 
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+                # Prevent double-clicking
+                if st.session_state.processing:
+                    st.warning("⏳ Already processing... please wait")
+                    st.stop()
                 
-                for idx, uploaded_file in enumerate(uploaded_files):
-                    status_text.text(f"Processing {uploaded_file.name}...")
+                st.session_state.processing = True
+                
+                try:
+                    client = anthropic.Anthropic(api_key=api_key)
+                    all_rooms = []
                     
-                    try:
-                        # Extract text
-                        uploaded_file.seek(0)  # Reset file pointer
-                        pdf_bytes = uploaded_file.read()
-                        
-                        if len(pdf_bytes) == 0:
-                            st.error(f"❌ {uploaded_file.name} is empty or corrupted")
-                            continue
-                        
-                        text_items = extract_text_with_coordinates(pdf_bytes)
-                        
-                        if len(text_items) == 0:
-                            st.warning(f"⚠️ No text found in {uploaded_file.name}")
-                            continue
-                        
-                        # Get floor level
-                        floor_level = extract_floor_level(text_items, client)
-                        
-                        # Group rooms
-                        rooms = group_text_with_claude(text_items, client)
-                        
-                        # Add floor level
-                        for room in rooms:
-                            room["level"] = floor_level
-                        
-                        all_rooms.extend(rooms)
-                        
-                    except Exception as file_error:
-                        st.error(f"❌ Error processing {uploaded_file.name}: {str(file_error)}")
-                        import traceback
-                        st.code(traceback.format_exc())
-                        continue
+                    # Process single file
+                    files_to_process = [{
+                        'name': uploaded_files[0].name,
+                        'bytes': uploaded_files[0].read()
+                    }]
                     
-                    progress_bar.progress((idx + 1) / len(uploaded_files))
+                    progress_bar = st.progress(0, text="Starting extraction...")
+                    status_text = st.empty()
+                    
+                    for idx, file_data in enumerate(files_to_process):
+                        status_text.markdown(f"**Processing:** {file_data['name']}")
+                        
+                        try:
+                            pdf_bytes = file_data['bytes']
+                            
+                            if len(pdf_bytes) == 0:
+                                st.error(f"❌ {file_data['name']} is empty or corrupted")
+                                continue
+                            
+                            progress_bar.progress(0.2, text="Extracting text from PDF...")
+                            text_items = extract_text_with_coordinates(pdf_bytes)
+                            
+                            if len(text_items) == 0:
+                                st.warning(f"⚠️ No text found in {file_data['name']}")
+                                continue
+                            
+                            # Get floor level
+                            progress_bar.progress(0.4, text="Identifying floor level...")
+                            floor_level = extract_floor_level(text_items, client)
+                            
+                            # Group rooms
+                            progress_bar.progress(0.6, text="Grouping room data with AI...")
+                            rooms = group_text_with_claude(text_items, client)
+                            
+                            # Add floor level
+                            for room in rooms:
+                                room["level"] = floor_level
+                            
+                            all_rooms.extend(rooms)
+                            progress_bar.progress(1.0, text="Complete!")
+                            
+                        except Exception as file_error:
+                            st.error(f"❌ Error processing {file_data['name']}: {str(file_error)}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                            continue
                 
                 status_text.empty()
                 progress_bar.empty()
                 
                 # Create Excel
-                st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(uploaded_files)} file(s)!")
+                st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
                 
                 # Show preview
                 st.markdown("### 📋 Preview")
