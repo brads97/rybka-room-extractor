@@ -154,10 +154,19 @@ st.markdown("""
         background-color: #0066CC;
     }
     
-    /* Success/Error messages */
+    /* Success messages - darker green text */
     .stSuccess {
-        background-color: #E8F8F5;
-        border-left: 4px solid #28B463;
+        background-color: #D1FAE5 !important;
+        border-left: 4px solid #10B981 !important;
+    }
+
+    .stSuccess p {
+        color: #065F46 !important;
+        font-weight: 500 !important;
+    }
+
+    .stSuccess [data-testid="stMarkdownContainer"] {
+        color: #065F46 !important;
     }
     
     .stError {
