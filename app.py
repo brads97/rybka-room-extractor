@@ -14,12 +14,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-# Force light theme to prevent white text
-st.markdown("""
-<script>
-    window.parent.document.querySelector('body').setAttribute('data-theme', 'light');
-</script>
-""", unsafe_allow_html=True)
+
 # ========== CUSTOM CSS (RYBKA THEME) ==========
 st.markdown("""
 <style>
@@ -154,18 +149,28 @@ st.markdown("""
         background-color: #0066CC;
     }
     
-    /* Success messages - darker green text */
+    /* Success/Error messages - FORCE visibility */
     .stSuccess {
         background-color: #D1FAE5 !important;
         border-left: 4px solid #10B981 !important;
+        color: #065F46 !important;
     }
 
-    .stSuccess p {
+    .stSuccess * {
+        color: #065F46 !important;
+    }
+
+    .stSuccess p, .stSuccess span, .stSuccess div {
         color: #065F46 !important;
         font-weight: 500 !important;
     }
 
-    .stSuccess [data-testid="stMarkdownContainer"] {
+    /* Target the actual success icon and text container */
+    [data-testid="stNotification"] {
+        color: #065F46 !important;
+    }
+
+    [data-testid="stNotification"] * {
         color: #065F46 !important;
     }
     
