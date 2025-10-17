@@ -94,32 +94,11 @@ st.markdown("""
         box-shadow: 0 6px 12px rgba(0, 61, 122, 0.3);
     }
     
-    /* File uploader text visibility fix */
-    [data-testid="stFileUploader"] label {
-        color: #262730 !important;
-    }
-    
-    [data-testid="stFileUploader"] section {
-        background-color: white !important;
-    }
-    
-    [data-testid="stFileUploader"] section > div {
-        color: #262730 !important;
-    }
-    
-    [data-testid="stFileUploader"] small {
-        color: #525252 !important;
-    }
-    
-    /* Uploaded file name styling */
-    .uploadedFileName {
-        color: #0066CC !important;
-        font-weight: 600 !important;
-    }
-    
-    /* File size text */
-    .uploadedFileData {
-        color: #4A5568 !important;
+    /* File uploader */
+    .uploadedFile {
+        border: 2px dashed #0066CC;
+        border-radius: 8px;
+        padding: 1rem;
     }
     
     /* Progress styling */
