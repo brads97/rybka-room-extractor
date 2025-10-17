@@ -110,11 +110,15 @@ st.markdown("""
     .stSuccess {
         background-color: #E8F8F5;
         border-left: 4px solid #28B463;
-        color: #0D6832 !important;
+        color: #000000 !important;
     }
     
     .stSuccess p {
-        color: #0D6832 !important;
+        color: #000000 !important;
+    }
+    
+    .stSuccess div {
+        color: #000000 !important;
     }
     
     .stError {
