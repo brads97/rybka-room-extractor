@@ -65,16 +65,6 @@ st.markdown("""
         color: white;
     }
     
-    /* Reset button styling */
-    .stButton > button[kind="secondary"] {
-        color: #FFFFFF !important;
-        background-color: #4B5563 !important;
-    }
-
-    /* Or target all buttons in that area */
-    div[data-testid="column"] > div > .stButton > button {
-        color: #FFFFFF !important;
-    }
     /* Card styling */
     .info-card {
         background: white;
