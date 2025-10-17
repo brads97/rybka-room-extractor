@@ -112,6 +112,38 @@ st.markdown("""
         padding: 1rem;
     }
     
+    /* Force file uploader text to be visible */
+    [data-testid="stFileUploader"] label {
+        color: #1F2937 !important;
+    }
+    
+    [data-testid="stFileUploader"] section {
+        color: #1F2937 !important;
+    }
+    
+    [data-testid="stFileUploader"] small {
+        color: #6B7280 !important;
+    }
+    
+    /* File name and size text */
+    [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] {
+        color: #1F2937 !important;
+    }
+    
+    /* Uploaded file info */
+    .uploadedFileName {
+        color: #1F2937 !important;
+    }
+    
+    .uploadedFileData {
+        color: #6B7280 !important;
+    }
+    
+    /* General text color fix */
+    .stApp {
+        color: #1F2937;
+    }
+    
     /* Progress styling */
     .stProgress > div > div {
         background-color: #0066CC;
