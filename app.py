@@ -107,40 +107,45 @@ st.markdown("""
     
     /* File uploader */
     .uploadedFile {
-        border: 2px dashed #0066CC;
-        border-radius: 8px;
-        padding: 1rem;
+    border: 2px dashed #0066CC;
+    border-radius: 8px;
+    padding: 1rem;
     }
-    
-    /* Force file uploader text to be visible */
-    [data-testid="stFileUploader"] label {
+
+    /* Force file uploader text to be visible - but NOT the drag/drop area */
+    [data-testid="stFileUploader"] > label > div {
         color: #1F2937 !important;
     }
-    
-    [data-testid="stFileUploader"] section {
-        color: #1F2937 !important;
-    }
-    
+
     [data-testid="stFileUploader"] small {
         color: #6B7280 !important;
     }
-    
-    /* File name and size text */
-    [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] {
+
+    /* File name and size text ONLY (after upload) */
+    [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p {
         color: #1F2937 !important;
     }
-    
+
     /* Uploaded file info */
     .uploadedFileName {
         color: #1F2937 !important;
     }
-    
+
     .uploadedFileData {
         color: #6B7280 !important;
     }
-    
-    /* General text color fix */
-    .stApp {
+
+    /* Keep drag-and-drop section text white/light */
+    [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] {
+        color: #E5E7EB !important;
+    }
+
+    [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] span {
+        color: #E5E7EB !important;
+    }
+
+    /* General text color fix - but don't override everything */
+    .main {
         color: #1F2937;
     }
     
