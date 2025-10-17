@@ -110,11 +110,11 @@ st.markdown("""
     .stSuccess {
         background-color: #E8F8F5;
         border-left: 4px solid #28B463;
-        color: #0D6832 !important;
+        color: #006400 !important;
     }
     
     .stSuccess p {
-        color: #0D6832 !important;
+        color: #006400 !important;
     }
     
     .stError {
@@ -660,3 +660,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
