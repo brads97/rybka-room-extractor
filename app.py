@@ -117,6 +117,10 @@ st.markdown("""
         color: #000000 !important;
     }
     
+    .stSuccess div {
+        color: #000000 !important;
+    }
+    
     .stError {
         background-color: #FADBD8;
         border-left: 4px solid #E74C3C;
@@ -660,5 +664,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
