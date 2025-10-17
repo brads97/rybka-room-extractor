@@ -585,39 +585,39 @@ def main():
                     # Create Excel
                     st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
                 
-                # Show preview
-                st.markdown("### 📋 Preview")
-                preview_data = []
-                for room in all_rooms[:10]:
-                    preview_data.append({
-                        "Level": room.get("level", ""),
-                        "Room Name": room.get("room_name", ""),
-                        "Room Type": room.get("space_type", ""),
-                        "Area": room.get("area", "")
-                    })
-                st.dataframe(preview_data, use_container_width=True)
-                
-                if len(all_rooms) > 10:
-                    st.info(f"Showing 10 of {len(all_rooms)} rooms")
-                
-                # Download button
-                excel_file = create_excel(all_rooms)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                st.download_button(
-                    label="📥 Download Excel File",
-                    data=excel_file,
-                    file_name=f"room_data_{timestamp}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-                
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-                import traceback
-                st.code(traceback.format_exc())
-            finally:
-                st.session_state.processing = False
+                    # Show preview
+                    st.markdown("### 📋 Preview")
+                    preview_data = []
+                    for room in all_rooms[:10]:
+                        preview_data.append({
+                            "Level": room.get("level", ""),
+                            "Room Name": room.get("room_name", ""),
+                            "Room Type": room.get("space_type", ""),
+                            "Area": room.get("area", "")
+                        })
+                    st.dataframe(preview_data, use_container_width=True)
+                    
+                    if len(all_rooms) > 10:
+                        st.info(f"Showing 10 of {len(all_rooms)} rooms")
+                    
+                    # Download button
+                    excel_file = create_excel(all_rooms)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    
+                    st.download_button(
+                        label="📥 Download Excel File",
+                        data=excel_file,
+                        file_name=f"room_data_{timestamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                    
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                finally:
+                    st.session_state.processing = False
     
     elif uploaded_files and not api_key:
         st.warning("⚠️ Please enter your Claude API key in the Configuration section above")
