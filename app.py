@@ -110,43 +110,11 @@ st.markdown("""
     .stSuccess {
         background-color: #E8F8F5;
         border-left: 4px solid #28B463;
-        color: #000000 !important;
-    }
-    
-    .stSuccess p {
-        color: #000000 !important;
-    }
-    
-    .stSuccess div {
-        color: #000000 !important;
     }
     
     .stError {
         background-color: #FADBD8;
         border-left: 4px solid #E74C3C;
-    }
-    
-    /* Upload file name styling */
-    .uploadedFileName {
-        color: #000000 !important;
-    }
-    
-    /* Section headers - making them blue */
-    h3 {
-        color: #003D7A !important;
-    }
-    
-    /* Dataframe text visibility */
-    .stDataFrame {
-        color: #000000;
-    }
-    
-    .stDataFrame table {
-        color: #000000 !important;
-    }
-    
-    .stDataFrame td, .stDataFrame th {
-        color: #000000 !important;
     }
     
     /* Footer */
@@ -299,12 +267,12 @@ QUALITY CHECKS:
 
 Return ONLY valid JSON array:
 [
-  {
+  {{
     "room_name": "Classroom 05",
     "room_number": "05",
     "space_type": "Teaching Space",
     "area": "56 m²"
-  }
+  }}
 ]
 
 If a field is unclear or not present in the text group, use null."""
@@ -664,3 +632,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
