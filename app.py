@@ -474,13 +474,11 @@ def main():
         pass
     
     # File upload
-    st.markdown(
-    '<h3 style="color:#004B87; font-weight:700;">📤 Upload Floor Plans</h3>',
-    unsafe_allow_html=True)
+    st.markdown("### 📤 Upload Floor Plans")
     
     st.markdown("""
     <div style="background-color: #FFF3CD; padding: 1rem; border-radius: 6px; border-left: 4px solid #FFC107; margin-bottom: 1rem;">
-        <p style="margin: 0; color: #856404; font-weight: 600;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
+        <p style="margin: 0; color: #856404; font-weight: 500;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -637,5 +635,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
