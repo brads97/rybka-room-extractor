@@ -410,6 +410,10 @@ def create_excel(rooms_data):
 # ========== STREAMLIT APP ==========
 
 def main():
+    # Initialize session state
+    if 'processing' not in st.session_state:
+        st.session_state.processing = False
+    
     # Header
     st.markdown("""
     <div class="rybka-header">
@@ -471,21 +475,45 @@ def main():
     
     # File upload
     st.markdown("### 📤 Upload Floor Plans")
+    
+    # Add file size limit warning
+    st.info("💡 **File size limit:** 10MB per PDF. Larger files may cause errors.")
+    
     uploaded_files = st.file_uploader(
         "Choose PDF files",
         type=['pdf'],
         accept_multiple_files=True,
-        help="Upload one or more architectural floor plan PDFs"
+        help="Upload one or more architectural floor plan PDFs (max 10MB each)"
     )
     
     if uploaded_files and api_key:
+        # Check file sizes
+        oversized_files = []
+        for f in uploaded_files:
+            f.seek(0, 2)  # Seek to end
+            size_mb = f.tell() / (1024 * 1024)
+            f.seek(0)  # Reset to beginning
+            if size_mb > 10:
+                oversized_files.append(f"{f.name} ({size_mb:.1f}MB)")
+        
+        if oversized_files:
+            st.error(f"❌ The following files are too large (max 10MB):\n" + "\n".join([f"- {f}" for f in oversized_files]))
+            st.stop()
+        
         st.markdown(f"**{len(uploaded_files)} file(s) uploaded**")
         
         if st.button("🚀 Extract Room Data", use_container_width=True):
             if not api_key or api_key == "":
                 st.error("❌ API key not configured. Please contact your administrator.")
-                return
-                
+                st.stop()
+            
+            # Prevent double-clicking
+            if st.session_state.processing:
+                st.warning("⏳ Already processing... please wait")
+                st.stop()
+            
+            st.session_state.processing = True
+            
             try:
                 client = anthropic.Anthropic(api_key=api_key)
                 all_rooms = []
@@ -498,8 +526,18 @@ def main():
                     
                     try:
                         # Extract text
+                        uploaded_file.seek(0)  # Reset file pointer
                         pdf_bytes = uploaded_file.read()
+                        
+                        if len(pdf_bytes) == 0:
+                            st.error(f"❌ {uploaded_file.name} is empty or corrupted")
+                            continue
+                        
                         text_items = extract_text_with_coordinates(pdf_bytes)
+                        
+                        if len(text_items) == 0:
+                            st.warning(f"⚠️ No text found in {uploaded_file.name}")
+                            continue
                         
                         # Get floor level
                         floor_level = extract_floor_level(text_items, client)
@@ -515,6 +553,8 @@ def main():
                         
                     except Exception as file_error:
                         st.error(f"❌ Error processing {uploaded_file.name}: {str(file_error)}")
+                        import traceback
+                        st.code(traceback.format_exc())
                         continue
                     
                     progress_bar.progress((idx + 1) / len(uploaded_files))
@@ -554,6 +594,10 @@ def main():
                 
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+            finally:
+                st.session_state.processing = False
     
     elif uploaded_files and not api_key:
         st.warning("⚠️ Please enter your Claude API key in the Configuration section above")
