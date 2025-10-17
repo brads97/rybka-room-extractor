@@ -672,7 +672,8 @@ def main():
                     data=excel_file,
                     file_name=f"room_data_{timestamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                    use_container_width=True,
+                    type="primary"
                 )
                     
             except Exception as e:
