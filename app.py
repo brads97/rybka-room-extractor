@@ -65,8 +65,14 @@ st.markdown("""
         color: white;
     }
     
-    /* Reset uploader button - white text */
-    [data-testid="stFileUploader"] button {
+    /* Reset button styling */
+    .stButton > button[kind="secondary"] {
+        color: #FFFFFF !important;
+        background-color: #4B5563 !important;
+    }
+
+    /* Or target all buttons in that area */
+    div[data-testid="column"] > div > .stButton > button {
         color: #FFFFFF !important;
     }
     /* Card styling */
