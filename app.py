@@ -516,22 +516,10 @@ def main():
         st.success(f"✅ **File ready:** {uploaded_files[0].name}")
         
         if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
-            if not api_key or api_key == "":
-                st.error("❌ API key not configured. Please contact your administrator.")
-                st.stop()
-            
-            # Prevent double-clicking
-            if st.session_state.processing:
-                st.warning("⏳ Already processing... please wait")
-                st.stop()
-            
-            st.session_state.processing = True
-        
-            try:
-                client = anthropic.Anthropic(api_key=api_key)
-                all_rooms = []
-                # ... (rest of your processing logic)
-
+            if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
+                if not api_key or api_key == "":
+                    st.error("❌ API key not configured. Please contact your administrator.")
+                    st.stop()
                 
                 # Prevent double-clicking
                 if st.session_state.processing:
@@ -643,4 +631,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
