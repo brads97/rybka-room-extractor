@@ -513,11 +513,7 @@ def main():
             st.error(f"❌ The following files are too large (max 10MB):\n" + "\n".join([f"- {f}" for f in oversized_files]))
             st.stop()
         
-        st.markdown(f"""
-        <div style="background-color: #D4EDDA; padding: 1rem; border-radius: 6px; border-left: 4px solid #28A745; margin: 1rem 0;">
-            <p style="margin: 0; color: #155724; font-weight: 600; font-size: 1rem;">✅ <strong>File ready:</strong> {uploaded_files[0].name}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.success(f"✅ **File ready:** {uploaded_files[0].name}")
         
         if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
             if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
