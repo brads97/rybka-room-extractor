@@ -578,12 +578,12 @@ def main():
                             import traceback
                             st.code(traceback.format_exc())
                             continue
-                
-                status_text.empty()
-                progress_bar.empty()
-                
-                # Create Excel
-                st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
+                    
+                    status_text.empty()
+                    progress_bar.empty()
+                    
+                    # Create Excel
+                    st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
                 
                 # Show preview
                 st.markdown("### 📋 Preview")
