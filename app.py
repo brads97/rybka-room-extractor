@@ -108,17 +108,21 @@ st.markdown("""
         padding: 1rem;
     }
 
-    /* Uploaded file name styling */
-    .uploadedFile div[data-testid="stMarkdownContainer"] {
-        color: #003D7A;
-        font-weight: 600;
-        font-size: 1rem;
+    /* Uploaded filename - force dark text */
+    section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
+    section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] span,
+    section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] {
+        color: #003D7A !important;
     }
 
-    /* File size text */
-    .uploadedFile small {
-        color: #4A5568;
-        font-size: 0.85rem;
+    /* Also target any text in the file uploader directly */
+    section[data-testid="stFileUploader"] div {
+        color: #003D7A !important;
+    }
+
+    /* File size remains grey */
+    section[data-testid="stFileUploader"] small {
+        color: #4A5568 !important;
     }
     
     /* Progress styling */
