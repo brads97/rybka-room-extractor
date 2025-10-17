@@ -569,16 +569,14 @@ def main():
         st.session_state.clear()
         st.rerun()
     
-    # Single file uploader (more reliable)
-    uploaded_file = st.file_uploader(
-        "Choose a PDF file",
+    # RESTORED: Multiple file uploader
+    uploaded_files = st.file_uploader(
+        "Choose PDF files",
         type=['pdf'],
-        help="Upload one architectural floor plan PDF",
+        accept_multiple_files=True,
+        help="Upload one or more architectural floor plan PDFs",
         key="pdf_uploader"
     )
-    
-    # Convert to list for compatibility with existing code
-    uploaded_files = [uploaded_file] if uploaded_file else []
     
     if uploaded_files and api_key:
         # Check file sizes
@@ -594,7 +592,14 @@ def main():
             st.error(f"❌ The following files are too large (max 10MB):\n" + "\n".join([f"- {f}" for f in oversized_files]))
             st.stop()
         
-        st.success(f"✅ **File ready:** {uploaded_files[0].name}")
+        # Show uploaded files
+        if len(uploaded_files) == 1:
+            st.success(f"✅ **File ready:** {uploaded_files[0].name}")
+        else:
+            st.success(f"✅ **{len(uploaded_files)} files ready for processing**")
+            with st.expander("📋 View uploaded files"):
+                for f in uploaded_files:
+                    st.write(f"• {f.name}")
         
         if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
             if not api_key or api_key == "":
@@ -611,49 +616,51 @@ def main():
             try:
                 client = anthropic.Anthropic(api_key=api_key)
                 all_rooms = []
-                    
-                 # Process single file
-                files_to_process = [{
-                    'name': uploaded_files[0].name,
-                    'bytes': uploaded_files[0].read()
-                    }]
-                    
-                    
+                
+                # Prepare files for processing
+                files_to_process = []
+                for uploaded_file in uploaded_files:
+                    files_to_process.append({
+                        'name': uploaded_file.name,
+                        'bytes': uploaded_file.read()
+                    })
+                
                 progress_bar = st.progress(0, text="Starting extraction...")
                 status_text = st.empty()
-                    
+                
                 for idx, file_data in enumerate(files_to_process):
-                    status_text.markdown(f"**Processing:** {file_data['name']}")
-                        
+                    file_progress = (idx + 1) / len(files_to_process)
+                    status_text.markdown(f"**Processing:** {file_data['name']} ({idx + 1}/{len(files_to_process)})")
+                    
                     try:
                         pdf_bytes = file_data['bytes']
-                            
+                        
                         if len(pdf_bytes) == 0:
                             st.error(f"❌ {file_data['name']} is empty or corrupted")
                             continue
-                            
-                        progress_bar.progress(0.2, text="Extracting text from PDF...")
+                        
+                        progress_bar.progress(file_progress * 0.3, text=f"Extracting text from {file_data['name']}...")
                         text_items = extract_text_with_coordinates(pdf_bytes)
-                            
+                        
                         if len(text_items) == 0:
                             st.warning(f"⚠️ No text found in {file_data['name']}")
                             continue
-                            
+                        
                         # Get floor level
-                        progress_bar.progress(0.4, text="Identifying floor level...")
+                        progress_bar.progress(file_progress * 0.5, text=f"Identifying floor level in {file_data['name']}...")
                         floor_level = extract_floor_level(text_items, client)
-                            
+                        
                         # Group rooms
-                        progress_bar.progress(0.6, text="Grouping room data with AI...")
+                        progress_bar.progress(file_progress * 0.8, text=f"Grouping room data in {file_data['name']}...")
                         rooms = group_text_with_claude(text_items, client)
-                            
+                        
                         # Add floor level
                         for room in rooms:
                             room["level"] = floor_level
-                            
+                        
                         all_rooms.extend(rooms)
-                        progress_bar.progress(1.0, text="Complete!")
-                            
+                        progress_bar.progress(file_progress, text=f"Completed {file_data['name']}")
+                        
                     except Exception as file_error:
                         st.error(f"❌ Error processing {file_data['name']}: {str(file_error)}")
                         import traceback
@@ -662,7 +669,7 @@ def main():
                 
                 status_text.empty()
                 progress_bar.empty()
-                    
+                
                 # Create Excel
                 st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
                 
@@ -675,17 +682,16 @@ def main():
                         "Room Name": room.get("room_name", ""),
                         "Room Type": room.get("space_type", ""),
                         "Area": room.get("area", "")
-                        
                     })
                 st.dataframe(preview_data, use_container_width=True)
-                    
+                
                 if len(all_rooms) > 10:
                     st.info(f"Showing 10 of {len(all_rooms)} rooms")
-                    
+                
                 # Download button
                 excel_file = create_excel(all_rooms)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    
+                
                 st.download_button(
                     label="📥 Download Excel File",
                     data=excel_file,
@@ -693,7 +699,7 @@ def main():
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
-                    
+                
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
                 import traceback
@@ -713,4 +719,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
