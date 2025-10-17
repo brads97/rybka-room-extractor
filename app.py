@@ -94,11 +94,32 @@ st.markdown("""
         box-shadow: 0 6px 12px rgba(0, 61, 122, 0.3);
     }
     
-    /* File uploader */
-    .uploadedFile {
-        border: 2px dashed #0066CC;
-        border-radius: 8px;
-        padding: 1rem;
+    /* File uploader text visibility fix */
+    [data-testid="stFileUploader"] label {
+        color: #262730 !important;
+    }
+    
+    [data-testid="stFileUploader"] section {
+        background-color: white !important;
+    }
+    
+    [data-testid="stFileUploader"] section > div {
+        color: #262730 !important;
+    }
+    
+    [data-testid="stFileUploader"] small {
+        color: #525252 !important;
+    }
+    
+    /* Uploaded file name styling */
+    .uploadedFileName {
+        color: #0066CC !important;
+        font-weight: 600 !important;
+    }
+    
+    /* File size text */
+    .uploadedFileData {
+        color: #4A5568 !important;
     }
     
     /* Progress styling */
@@ -478,7 +499,7 @@ def main():
     
     st.markdown("""
     <div style="background-color: #FFF3CD; padding: 1rem; border-radius: 6px; border-left: 4px solid #FFC107; margin-bottom: 1rem;">
-        <p style="margin: 0; color: #856404; font-weight: 500;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
+        <p style="margin: 0; color: #664d03 !important; font-weight: 700 !important; font-size: 15px;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -513,7 +534,11 @@ def main():
             st.error(f"❌ The following files are too large (max 10MB):\n" + "\n".join([f"- {f}" for f in oversized_files]))
             st.stop()
         
-        st.success(f"✅ **File ready:** {uploaded_files[0].name}")
+        st.markdown(f"""
+        <div style="background-color: #D4EDDA; padding: 1rem; border-radius: 6px; border-left: 4px solid #28A745; margin: 1rem 0;">
+            <p style="margin: 0; color: #155724; font-weight: 600; font-size: 1rem;">✅ <strong>File ready:</strong> {uploaded_files[0].name}</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
             if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
