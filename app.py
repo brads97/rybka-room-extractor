@@ -101,29 +101,23 @@ st.markdown("""
         box-shadow: 0 6px 12px rgba(0, 61, 122, 0.3);
     }
     
-    /* File uploader */
-    .uploadedFile {
-        border: 2px dashed #0066CC;
-        border-radius: 8px;
-        padding: 1rem;
+    /* File uploader - fix layering */
+    section[data-testid="stFileUploader"] > div {
+        position: relative;
+        z-index: 1;
     }
 
-    /* Uploaded filename - force dark text */
-    section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
-    section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] span,
+    /* Make sure text is on top */
     section[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] {
-        color: #003D7A !important;
+        position: relative;
+        z-index: 10;
+        color: #003D7A;
     }
 
-    /* Also target any text in the file uploader directly */
-    section[data-testid="stFileUploader"] div {
-        color: #003D7A !important;
-    }
-
-    /* File size remains grey */
-    section[data-testid="stFileUploader"] small {
-        color: #4A5568 !important;
-    }
+/* Or remove the white overlay background entirely */
+section[data-testid="stFileUploader"] > div > div > div {
+    background: transparent !important;
+}
     
     /* Progress styling */
     .stProgress > div > div {
