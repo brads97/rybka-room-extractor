@@ -65,6 +65,10 @@ st.markdown("""
         color: white;
     }
     
+    /* Reset uploader button - white text */
+    [data-testid="stFileUploader"] button {
+        color: #FFFFFF !important;
+    }
     /* Card styling */
     .info-card {
         background: white;
