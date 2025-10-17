@@ -185,7 +185,8 @@ def extract_floor_level(text_items, client):
             return level
     
     # If pattern matching fails, use Claude
-    prompt = f"""Extract the floor level from this architectural drawing text.
+    try:
+        prompt = f"""Extract the floor level from this architectural drawing text.
 
 EXTRACTED TEXT FROM PDF:
 {all_text[:3000]}
@@ -216,18 +217,21 @@ CRITICAL RULES:
 
 Do not explain, just return the floor level name."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=50,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    floor_level = message.content[0].text.strip()
-    
-    # Clean up the response
-    floor_level = floor_level.replace('"', '').replace("'", "").strip()
-    
-    return floor_level if floor_level and floor_level != "Unknown" else "Unknown"
+        message = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=50,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        floor_level = message.content[0].text.strip()
+        
+        # Clean up the response
+        floor_level = floor_level.replace('"', '').replace("'", "").strip()
+        
+        return floor_level if floor_level and floor_level != "Unknown" else "Unknown"
+    except Exception as e:
+        st.warning(f"Could not extract floor level: {str(e)}")
+        return "Unknown"
 
 def group_text_with_claude(text_items, client):
     """Use Claude to intelligently group extracted text into room records."""
@@ -263,32 +267,39 @@ QUALITY CHECKS:
 
 Return ONLY valid JSON array:
 [
-  {
+  {{
     "room_name": "Classroom 05",
     "room_number": "05",
     "space_type": "Teaching Space",
     "area": "56 m²"
-  }
+  }}
 ]
 
 If a field is unclear or not present in the text group, use null."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    response_text = message.content[0].text
-    
     try:
-        start_idx = response_text.find('[')
-        end_idx = response_text.rfind(']') + 1
-        json_str = response_text[start_idx:end_idx]
-        rooms_data = json.loads(json_str)
-        return rooms_data
+        message = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        response_text = message.content[0].text
+        
+        try:
+            start_idx = response_text.find('[')
+            end_idx = response_text.rfind(']') + 1
+            json_str = response_text[start_idx:end_idx]
+            rooms_data = json.loads(json_str)
+            return rooms_data
+        except Exception as e:
+            st.error(f"Error parsing JSON response: {e}")
+            st.code(response_text[:500])  # Show first 500 chars of response
+            return []
     except Exception as e:
-        st.error(f"Error parsing response: {e}")
+        st.error(f"Error calling Claude API: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
         return []
 
 def sort_rooms(rooms_data):
@@ -399,6 +410,10 @@ def create_excel(rooms_data):
 # ========== STREAMLIT APP ==========
 
 def main():
+    # Initialize session state
+    if 'processing' not in st.session_state:
+        st.session_state.processing = False
+    
     # Header
     st.markdown("""
     <div class="rybka-header">
@@ -460,90 +475,149 @@ def main():
     
     # File upload
     st.markdown("### 📤 Upload Floor Plans")
-    uploaded_files = st.file_uploader(
-        "Choose PDF files",
+    
+    st.markdown("""
+    <div style="background-color: #FFF3CD; padding: 1rem; border-radius: 6px; border-left: 4px solid #FFC107; margin-bottom: 1rem;">
+        <p style="margin: 0; color: #856404; font-weight: 500;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Reset button
+    if st.button("🔄 Reset Uploader", help="Click if uploads are failing"):
+        st.cache_data.clear()
+        st.session_state.clear()
+        st.rerun()
+    
+    # Single file uploader (more reliable)
+    uploaded_file = st.file_uploader(
+        "Choose a PDF file",
         type=['pdf'],
-        accept_multiple_files=True,
-        help="Upload one or more architectural floor plan PDFs"
+        help="Upload one architectural floor plan PDF",
+        key="pdf_uploader"
     )
     
+    # Convert to list for compatibility with existing code
+    uploaded_files = [uploaded_file] if uploaded_file else []
+    
     if uploaded_files and api_key:
-        st.markdown(f"**{len(uploaded_files)} file(s) uploaded**")
+        # Check file sizes
+        oversized_files = []
+        for f in uploaded_files:
+            f.seek(0, 2)  # Seek to end
+            size_mb = f.tell() / (1024 * 1024)
+            f.seek(0)  # Reset to beginning
+            if size_mb > 10:
+                oversized_files.append(f"{f.name} ({size_mb:.1f}MB)")
         
-        # FIXED: Added unique key parameter to prevent DuplicateWidgetID error
-        if st.button("🚀 Extract Room Data", use_container_width=True, key="extract_button"):
-            if not api_key or api_key == "":
-                st.error("❌ API key not configured. Please contact your administrator.")
-                return
+        if oversized_files:
+            st.error(f"❌ The following files are too large (max 10MB):\n" + "\n".join([f"- {f}" for f in oversized_files]))
+            st.stop()
+        
+        st.success(f"✅ **File ready:** {uploaded_files[0].name}")
+        
+        if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
+            if st.button("🚀 Extract Room Data", use_container_width=True, type="primary"):
+                if not api_key or api_key == "":
+                    st.error("❌ API key not configured. Please contact your administrator.")
+                    st.stop()
                 
-            try:
-                client = anthropic.Anthropic(api_key=api_key)
-                all_rooms = []
+                # Prevent double-clicking
+                if st.session_state.processing:
+                    st.warning("⏳ Already processing... please wait")
+                    st.stop()
                 
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+                st.session_state.processing = True
                 
-                for idx, uploaded_file in enumerate(uploaded_files):
-                    status_text.text(f"Processing {uploaded_file.name}...")
+                try:
+                    client = anthropic.Anthropic(api_key=api_key)
+                    all_rooms = []
                     
-                    try:
-                        # Extract text
-                        pdf_bytes = uploaded_file.read()
-                        text_items = extract_text_with_coordinates(pdf_bytes)
-                        
-                        # Get floor level
-                        floor_level = extract_floor_level(text_items, client)
-                        
-                        # Group rooms
-                        rooms = group_text_with_claude(text_items, client)
-                        
-                        # Add floor level
-                        for room in rooms:
-                            room["level"] = floor_level
-                        
-                        all_rooms.extend(rooms)
-                        
-                    except Exception as file_error:
-                        st.error(f"❌ Error processing {uploaded_file.name}: {str(file_error)}")
-                        continue
+                    # Process single file
+                    files_to_process = [{
+                        'name': uploaded_files[0].name,
+                        'bytes': uploaded_files[0].read()
+                    }]
                     
-                    progress_bar.progress((idx + 1) / len(uploaded_files))
+                    progress_bar = st.progress(0, text="Starting extraction...")
+                    status_text = st.empty()
+                    
+                    for idx, file_data in enumerate(files_to_process):
+                        status_text.markdown(f"**Processing:** {file_data['name']}")
+                        
+                        try:
+                            pdf_bytes = file_data['bytes']
+                            
+                            if len(pdf_bytes) == 0:
+                                st.error(f"❌ {file_data['name']} is empty or corrupted")
+                                continue
+                            
+                            progress_bar.progress(0.2, text="Extracting text from PDF...")
+                            text_items = extract_text_with_coordinates(pdf_bytes)
+                            
+                            if len(text_items) == 0:
+                                st.warning(f"⚠️ No text found in {file_data['name']}")
+                                continue
+                            
+                            # Get floor level
+                            progress_bar.progress(0.4, text="Identifying floor level...")
+                            floor_level = extract_floor_level(text_items, client)
+                            
+                            # Group rooms
+                            progress_bar.progress(0.6, text="Grouping room data with AI...")
+                            rooms = group_text_with_claude(text_items, client)
+                            
+                            # Add floor level
+                            for room in rooms:
+                                room["level"] = floor_level
+                            
+                            all_rooms.extend(rooms)
+                            progress_bar.progress(1.0, text="Complete!")
+                            
+                        except Exception as file_error:
+                            st.error(f"❌ Error processing {file_data['name']}: {str(file_error)}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                            continue
+                    
+                    status_text.empty()
+                    progress_bar.empty()
+                    
+                    # Create Excel
+                    st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(files_to_process)} file(s)!")
                 
-                status_text.empty()
-                progress_bar.empty()
-                
-                # Create Excel
-                st.success(f"✅ Successfully extracted {len(all_rooms)} rooms from {len(uploaded_files)} file(s)!")
-                
-                # Show preview
-                st.markdown("### 📋 Preview")
-                preview_data = []
-                for room in all_rooms[:10]:
-                    preview_data.append({
-                        "Level": room.get("level", ""),
-                        "Room Name": room.get("room_name", ""),
-                        "Room Type": room.get("space_type", ""),
-                        "Area": room.get("area", "")
-                    })
-                st.dataframe(preview_data, use_container_width=True)
-                
-                if len(all_rooms) > 10:
-                    st.info(f"Showing 10 of {len(all_rooms)} rooms")
-                
-                # Download button
-                excel_file = create_excel(all_rooms)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                st.download_button(
-                    label="📥 Download Excel File",
-                    data=excel_file,
-                    file_name=f"room_data_{timestamp}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-                
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                    # Show preview
+                    st.markdown("### 📋 Preview")
+                    preview_data = []
+                    for room in all_rooms[:10]:
+                        preview_data.append({
+                            "Level": room.get("level", ""),
+                            "Room Name": room.get("room_name", ""),
+                            "Room Type": room.get("space_type", ""),
+                            "Area": room.get("area", "")
+                        })
+                    st.dataframe(preview_data, use_container_width=True)
+                    
+                    if len(all_rooms) > 10:
+                        st.info(f"Showing 10 of {len(all_rooms)} rooms")
+                    
+                    # Download button
+                    excel_file = create_excel(all_rooms)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    
+                    st.download_button(
+                        label="📥 Download Excel File",
+                        data=excel_file,
+                        file_name=f"room_data_{timestamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                    
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                finally:
+                    st.session_state.processing = False
     
     elif uploaded_files and not api_key:
         st.warning("⚠️ Please enter your Claude API key in the Configuration section above")
