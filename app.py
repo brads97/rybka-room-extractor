@@ -25,6 +25,13 @@ st.markdown("""
         --rybka-accent: #E8F1F8;
     }
     
+    
+    /* Section headers */
+    .main h3 {
+        color: #003D7A;
+        font-weight: 600;
+    }   
+                
     /* Main container */
     .main {
         background-color: #F5F7FA;
