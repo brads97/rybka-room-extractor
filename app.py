@@ -187,6 +187,25 @@ st.markdown("""
         font-size: 0.9rem;
         margin-top: 3rem;
     }
+    /* Download button - force white text and blue background */
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #003D7A 0%, #0066CC 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+
+    .stDownloadButton > button p {
+        color: #FFFFFF !important;
+    }
+
+    .stDownloadButton > button span {
+        color: #FFFFFF !important;
+    }
+
+    .stDownloadButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 61, 122, 0.3) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -672,8 +691,7 @@ def main():
                     data=excel_file,
                     file_name=f"room_data_{timestamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    type="primary"
+                    use_container_width=True
                 )
                     
             except Exception as e:
