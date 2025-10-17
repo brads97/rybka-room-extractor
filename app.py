@@ -185,7 +185,8 @@ def extract_floor_level(text_items, client):
             return level
     
     # If pattern matching fails, use Claude
-    prompt = f"""Extract the floor level from this architectural drawing text.
+    try:
+        prompt = f"""Extract the floor level from this architectural drawing text.
 
 EXTRACTED TEXT FROM PDF:
 {all_text[:3000]}
@@ -216,18 +217,21 @@ CRITICAL RULES:
 
 Do not explain, just return the floor level name."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=50,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    floor_level = message.content[0].text.strip()
-    
-    # Clean up the response
-    floor_level = floor_level.replace('"', '').replace("'", "").strip()
-    
-    return floor_level if floor_level and floor_level != "Unknown" else "Unknown"
+        message = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=50,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        floor_level = message.content[0].text.strip()
+        
+        # Clean up the response
+        floor_level = floor_level.replace('"', '').replace("'", "").strip()
+        
+        return floor_level if floor_level and floor_level != "Unknown" else "Unknown"
+    except Exception as e:
+        st.warning(f"Could not extract floor level: {str(e)}")
+        return "Unknown"
 
 def group_text_with_claude(text_items, client):
     """Use Claude to intelligently group extracted text into room records."""
@@ -273,22 +277,29 @@ Return ONLY valid JSON array:
 
 If a field is unclear or not present in the text group, use null."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    response_text = message.content[0].text
-    
     try:
-        start_idx = response_text.find('[')
-        end_idx = response_text.rfind(']') + 1
-        json_str = response_text[start_idx:end_idx]
-        rooms_data = json.loads(json_str)
-        return rooms_data
+        message = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        response_text = message.content[0].text
+        
+        try:
+            start_idx = response_text.find('[')
+            end_idx = response_text.rfind(']') + 1
+            json_str = response_text[start_idx:end_idx]
+            rooms_data = json.loads(json_str)
+            return rooms_data
+        except Exception as e:
+            st.error(f"Error parsing JSON response: {e}")
+            st.code(response_text[:500])  # Show first 500 chars of response
+            return []
     except Exception as e:
-        st.error(f"Error parsing response: {e}")
+        st.error(f"Error calling Claude API: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
         return []
 
 def sort_rooms(rooms_data):
@@ -442,7 +453,7 @@ def main():
     
     # Fallback for local development - you can hardcode here temporarily
     if not api_key:
-        api_key = ""  # Replace with your actual key for local testing
+        api_key = "YOUR_API_KEY_HERE"  # Replace with your actual key for local testing
     
     # Only show config section if API key is not set
     if not api_key or api_key == "YOUR_API_KEY_HERE":
@@ -471,6 +482,10 @@ def main():
         st.markdown(f"**{len(uploaded_files)} file(s) uploaded**")
         
         if st.button("🚀 Extract Room Data", use_container_width=True):
+            if not api_key or api_key == "":
+                st.error("❌ API key not configured. Please contact your administrator.")
+                return
+                
             try:
                 client = anthropic.Anthropic(api_key=api_key)
                 all_rooms = []
@@ -481,21 +496,26 @@ def main():
                 for idx, uploaded_file in enumerate(uploaded_files):
                     status_text.text(f"Processing {uploaded_file.name}...")
                     
-                    # Extract text
-                    pdf_bytes = uploaded_file.read()
-                    text_items = extract_text_with_coordinates(pdf_bytes)
-                    
-                    # Get floor level
-                    floor_level = extract_floor_level(text_items, client)
-                    
-                    # Group rooms
-                    rooms = group_text_with_claude(text_items, client)
-                    
-                    # Add floor level
-                    for room in rooms:
-                        room["level"] = floor_level
-                    
-                    all_rooms.extend(rooms)
+                    try:
+                        # Extract text
+                        pdf_bytes = uploaded_file.read()
+                        text_items = extract_text_with_coordinates(pdf_bytes)
+                        
+                        # Get floor level
+                        floor_level = extract_floor_level(text_items, client)
+                        
+                        # Group rooms
+                        rooms = group_text_with_claude(text_items, client)
+                        
+                        # Add floor level
+                        for room in rooms:
+                            room["level"] = floor_level
+                        
+                        all_rooms.extend(rooms)
+                        
+                    except Exception as file_error:
+                        st.error(f"❌ Error processing {uploaded_file.name}: {str(file_error)}")
+                        continue
                     
                     progress_bar.progress((idx + 1) / len(uploaded_files))
                 
