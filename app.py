@@ -130,15 +130,30 @@ st.markdown("""
         color: #6B7280 !important;
     }
 
-    /* Make drag-and-drop section grey */
+    /* Make drag-and-drop section grey with border */
     [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] {
         background-color: #F3F4F6 !important;
         color: #4B5563 !important;
-        border-color: #D1D5DB !important;
+        border: 2px dashed #9CA3AF !important;
+        border-radius: 8px !important;
     }
 
     [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] span {
         color: #4B5563 !important;
+    }
+
+    /* Style the Browse files button */
+    [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] button {
+        background-color: #0066CC !important;
+        color: white !important;
+        border: none !important;
+        padding: 0.5rem 1.5rem !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+
+    [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] button:hover {
+        background-color: #003D7A !important;
     }
 
     /* General text color fix - but don't override everything */
