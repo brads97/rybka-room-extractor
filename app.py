@@ -130,13 +130,15 @@ st.markdown("""
         color: #6B7280 !important;
     }
 
-    /* Keep drag-and-drop section text white/light */
+    /* Make drag-and-drop section grey */
     [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] {
-        color: #E5E7EB !important;
+        background-color: #F3F4F6 !important;
+        color: #4B5563 !important;
+        border-color: #D1D5DB !important;
     }
 
     [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] span {
-        color: #E5E7EB !important;
+        color: #4B5563 !important;
     }
 
     /* General text color fix - but don't override everything */
