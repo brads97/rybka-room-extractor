@@ -5,7 +5,6 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font
 import json
 import io
-import base64
 from datetime import datetime
 
 # ========== PAGE CONFIG ==========
@@ -131,13 +130,15 @@ st.markdown("""
         color: #6B7280 !important;
     }
 
-    /* Keep drag-and-drop section text white/light */
+    /* Make drag-and-drop section grey */
     [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] {
-        color: #E5E7EB !important;
+        background-color: #F3F4F6 !important;
+        color: #4B5563 !important;
+        border-color: #D1D5DB !important;
     }
 
     [data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] span {
-        color: #E5E7EB !important;
+        color: #4B5563 !important;
     }
 
     /* General text color fix - but don't override everything */
@@ -323,7 +324,7 @@ def group_text_with_claude(text_items, client):
     
     text_summary = "\n".join(text_list)
     
-            prompt = f"""You are analyzing text extracted from an architectural floor plan PDF. Below is ALL the text found in the document with their coordinates.
+    prompt = f"""You are analyzing text extracted from an architectural floor plan PDF. Below is ALL the text found in the document with their coordinates.
 
 Your task: Group this text into room records. Each room typically has 2-3 text labels near each other (room name, space type, area).
 
@@ -333,37 +334,27 @@ EXTRACTED TEXT (with coordinates):
 STRICT RULES:
 1. You can ONLY use text from the list above - you cannot add any text that isn't listed
 2. Group text items that are close together spatially (similar x,y coordinates)
-3. CRITICAL: Look for ALL instances of room labels - if you see "WC" appearing 10 times in different locations, that means there are 10 separate WC rooms that must each be included
-4. Identify which text is:
-   - room_name: specific room identifier (e.g., "Classroom 05", "Store", "WC", "Shower")
-   - room_number: if there's a separate number/code (e.g., "05", "101", "D-11")
+3. Identify which text is:
+   - room_name: specific room identifier (e.g., "Classroom 05", "Store", "Pupil WC")
+   - room_number: if there's a separate number/code (e.g., "05", "101", "A-23")
    - space_type: category/function (e.g., "Teaching Space", "Circulation", "Hygiene Area")  
-   - area: size with m² (e.g., "56 m²", "13 m²", "2500", "2400")
-5. If you see repeated room types (like multiple "WC" or "Shower" labels), each one is a SEPARATE room
-6. Room numbers or door numbers (like "D-11", "D-12", "W-14") can help distinguish between similar rooms
-7. Ignore legend text, title blocks, scale bars, and other non-room labels
-8. Skip text that clearly isn't labeling a room space
-9. If you cannot confidently identify what a text item represents, don't include it
+   - area: size with m² (e.g., "56 m²", "13 m²")
+4. Ignore legend text, title blocks, scale bars, and other non-room labels
+5. Skip text that clearly isn't labeling a room space
+6. If you cannot confidently identify what a text item represents, don't include it
 
 QUALITY CHECKS:
 - Does each room_name actually appear in the extracted text list above?
 - Are you grouping text that is spatially close together?
 - Did you avoid including legend categories as room names?
-- Did you include ALL instances of repeated room types (all WCs, all Showers, etc.)?
 
 Return ONLY valid JSON array:
 [
   {{
-    "room_name": "WC",
-    "room_number": "D-11",
-    "space_type": "Hygiene",
-    "area": "2400"
-  }},
-  {{
-    "room_name": "WC",
-    "room_number": "D-12",
-    "space_type": "Hygiene",
-    "area": null
+    "room_name": "Classroom 05",
+    "room_number": "05",
+    "space_type": "Teaching Space",
+    "area": "56 m²"
   }}
 ]
 
@@ -393,162 +384,6 @@ If a field is unclear or not present in the text group, use null."""
         import traceback
         st.code(traceback.format_exc())
         return []
-
-def calculate_missing_areas(pdf_bytes, rooms_data, client):
-    """Use Claude Vision to calculate areas for rooms missing area data."""
-    
-    # Find rooms without areas
-    rooms_needing_areas = []
-    for idx, room in enumerate(rooms_data):
-        area_str = room.get("area", "")
-        if not area_str or area_str.strip() == "":
-            rooms_needing_areas.append({
-                "index": idx,
-                "room_name": room.get("room_name", "Unknown"),
-                "room_number": room.get("room_number", ""),
-                "space_type": room.get("space_type", "")
-            })
-    
-    if not rooms_needing_areas:
-        return rooms_data  # No areas to calculate
-    
-    try:
-        # Convert PDF to image
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        page = doc[0]
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # Higher resolution
-        img_bytes = pix.tobytes("png")
-        doc.close()
-        
-        # Encode to base64
-        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-        
-        # Build list of rooms needing areas
-        room_list = "\n".join([
-            f"- {r['room_name']}" + (f" ({r['room_number']})" if r['room_number'] else "")
-            for r in rooms_needing_areas
-        ])
-        
-        prompt = f"""You are analyzing an architectural floor plan to calculate room areas.
-
-ROOMS NEEDING AREA CALCULATIONS:
-{room_list}
-
-INSTRUCTIONS:
-1. First, identify the drawing scale (e.g., 1:50, 1:100) - look for text like "Scale @ A1 1:50" or scale bars
-2. For each room listed above:
-   - Locate the room on the plan by its name/label
-   - CRITICAL: Identify the room boundaries using the THICK BLACK LINES that represent walls (not thin lines, not dimension lines, not dashed lines)
-   - The thick black perimeter lines are the actual walls
-   - Measure INSIDE the thick black wall lines (internal dimensions only)
-   - Measure the room dimensions using the scale
-   - For rectangular rooms: length × width
-   - For irregular rooms: break into rectangles and sum the areas
-   - Calculate the floor area in square meters
-3. If a room cannot be measured accurately, explain why
-
-WALL IDENTIFICATION GUIDE:
-- Walls = THICK BLACK SOLID LINES forming the room perimeter
-- NOT walls = thin lines (dimensions), dashed lines (door swings), furniture outlines
-- Measure from inside edge to inside edge of the thick black wall lines
-- Example: If walls are 200mm thick, subtract wall thickness from overall dimensions
-
-Return ONLY valid JSON:
-{{
-  "scale": "1:50",
-  "rooms": [
-    {{
-      "room_name": "WC",
-      "room_number": "D-11",
-      "area_m2": 2.4,
-      "calculation": "Measured internal: 2.0m x 1.2m = 2.4m² (inside thick black walls)",
-      "confidence": "high"
-    }},
-    {{
-      "room_name": "Shower",
-      "room_number": null,
-      "area_m2": 1.8,
-      "calculation": "Measured internal: 1.5m x 1.2m = 1.8m² (inside thick black walls)",
-      "confidence": "medium"
-    }},
-    {{
-      "room_name": "Store",
-      "area_m2": null,
-      "calculation": "Unable to determine - wall boundaries unclear or room not visible",
-      "confidence": "unable"
-    }}
-  ]
-}}
-
-CRITICAL:
-- Only calculate areas for the rooms listed above
-- ALWAYS measure INSIDE the thick black wall lines (internal dimensions)
-- Be as accurate as possible with measurements
-- If room boundaries are irregular, break into rectangles
-- State your measurements in the calculation field (e.g., "2.0m x 1.2m = 2.4m²")
-- Confidence levels: "high", "medium", "low", "unable"
-- Return null for area_m2 if unable to measure"""
-
-        message = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=4096,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": img_base64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": prompt
-                    }
-                ]
-            }]
-        )
-        
-        response_text = message.content[0].text
-        
-        # Parse JSON response
-        try:
-            start_idx = response_text.find('{')
-            end_idx = response_text.rfind('}') + 1
-            json_str = response_text[start_idx:end_idx]
-            vision_data = json.loads(json_str)
-            
-            # Update rooms_data with calculated areas
-            for vision_room in vision_data.get("rooms", []):
-                vision_name = vision_room.get("room_name", "")
-                area_m2 = vision_room.get("area_m2")
-                calculation = vision_room.get("calculation", "")
-                
-                # Find matching room in rooms_data
-                for room in rooms_data:
-                    if room.get("room_name", "") == vision_name and not room.get("area"):
-                        if area_m2 and area_m2 > 0:
-                            room["area"] = f"{area_m2} m²*"
-                            room["area_note"] = f"Calculated: {calculation}"
-                        else:
-                            room["area"] = ""
-                            room["area_note"] = calculation
-                        break
-            
-            return rooms_data
-            
-        except Exception as parse_error:
-            st.warning(f"Could not parse vision response: {parse_error}")
-            st.code(response_text[:500])
-            return rooms_data
-            
-    except Exception as e:
-        st.warning(f"Vision area calculation failed: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc())
-        return rooms_data
 
 def sort_rooms(rooms_data):
     """Sort rooms by floor level and then alphabetically by room name."""
@@ -593,12 +428,12 @@ def create_excel(rooms_data):
     ws['L9'] = 'Total (l/s)'
     ws['O9'] = 'Total (l/s)'
     
-    # Headers (added "Notes" column)
+    # Headers
     headers = [
         'Level', 'Room Name', 'Room Number', 'Room Type', 'Floor Area (m2)',
         'Strategy', 'Occupancy (No.)', 'Volume (m³)', 'Supply (l/p/s)',
         'Supply (l/p/m2)', 'Supply Calc (l/s)', 'Supply (l/s)',
-        'Extract (ACH)', 'Extract Calc (l/s)', 'Extract (l/s)', 'Notes'
+        'Extract (ACH)', 'Extract Calc (l/s)', 'Extract (l/s)'
     ]
     
     for col_idx, header in enumerate(headers, start=1):
@@ -614,13 +449,8 @@ def create_excel(rooms_data):
         row_num = start_row + idx
         
         area_str = room.get("area", "")
-        # Check if area has asterisk (calculated)
-        is_calculated = area_str.endswith("*")
-        
         try:
-            # Remove asterisk and units for calculation
-            clean_area = area_str.replace("*", "").replace("m²", "").replace("m2", "").strip()
-            area_value = float(clean_area) if clean_area else 0
+            area_value = float(area_str.replace("m²", "").replace("m2", "").strip()) if area_str else 0
         except:
             area_value = 0
         
@@ -628,14 +458,7 @@ def create_excel(rooms_data):
         ws.cell(row=row_num, column=2).value = room.get("room_name", "")
         ws.cell(row=row_num, column=3).value = room.get("room_number", "")
         ws.cell(row=row_num, column=4).value = room.get("space_type", "")
-        
-        # Area column - keep asterisk if calculated
-        if area_value > 0:
-            display_area = f"{area_value}*" if is_calculated else area_value
-            ws.cell(row=row_num, column=5).value = display_area
-        else:
-            ws.cell(row=row_num, column=5).value = ""
-        
+        ws.cell(row=row_num, column=5).value = area_value if area_value > 0 else ""
         ws.cell(row=row_num, column=6).value = ""
         ws.cell(row=row_num, column=7).value = ""
         
@@ -651,24 +474,13 @@ def create_excel(rooms_data):
         ws.cell(row=row_num, column=13).value = ""
         ws.cell(row=row_num, column=14).value = f"=M{row_num}*H{row_num}/3.6"
         ws.cell(row=row_num, column=15).value = f"=ROUNDUP(N{row_num},0)"
-        
-        # Notes column (16)
-        area_note = room.get("area_note", "")
-        if is_calculated and area_note:
-            ws.cell(row=row_num, column=16).value = area_note
-        elif is_calculated:
-            ws.cell(row=row_num, column=16).value = "Area calculated from drawing"
-        elif area_note:
-            ws.cell(row=row_num, column=16).value = area_note
-        else:
-            ws.cell(row=row_num, column=16).value = ""
     
     end_row = start_row + len(sorted_rooms) - 1
     ws['L10'] = f"=SUM(L{start_row}:L{end_row})"
     ws['O10'] = f"=SUM(O{start_row}:O{end_row})"
     
-    # Column widths (added width for Notes column)
-    widths = [12, 25, 15, 20, 16, 12, 16, 14, 14, 16, 16, 13, 15, 17, 14, 40]
+    # Column widths
+    widths = [12, 25, 15, 20, 16, 12, 16, 14, 14, 16, 16, 13, 15, 17, 14]
     for idx, width in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(idx)].width = width
     
@@ -708,7 +520,7 @@ def main():
         st.markdown("""
         <div class="info-card">
             <h3>🤖 AI Processing</h3>
-            <p>Extract room data & calculate missing areas using Claude Vision AI</p>
+            <p>Automatically extract room data using Claude AI</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -723,9 +535,10 @@ def main():
     st.markdown("<br>", unsafe_allow_html=True)
     
     # API Key - Hardcoded (hidden from users)
+    # Replace YOUR_API_KEY_HERE with your actual Claude API key
     api_key = st.secrets.get("ANTHROPIC_API_KEY", None)
     
-    # Fallback for local development
+    # Fallback for local development - you can hardcode here temporarily
     if not api_key:
         api_key = "YOUR_API_KEY_HERE"  # Replace with your actual key for local testing
     
@@ -739,6 +552,9 @@ def main():
             )
             if api_key:
                 st.success("✓ API Key configured")
+    else:
+        # API key is configured via secrets, don't show the config section
+        pass
     
     # File upload
     st.markdown("### 📤 Upload Floor Plans")
@@ -748,12 +564,6 @@ def main():
         <p style="margin: 0; color: #856404; font-weight: 500;">⚠️ <strong>Upload Tip:</strong> For best results, upload and process files one at a time.</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Reset button
-    if st.button("🔄 Reset Uploader", help="Click if uploads are failing"):
-        st.cache_data.clear()
-        st.session_state.clear()
-        st.rerun()
     
     uploaded_files = st.file_uploader(
         "Choose PDF files",
@@ -824,7 +634,7 @@ def main():
                             st.error(f"❌ {file_data['name']} is empty or corrupted")
                             continue
                         
-                        progress_bar.progress(file_progress * 0.2, text=f"Extracting text from {file_data['name']}...")
+                        progress_bar.progress(file_progress * 0.3, text=f"Extracting text from {file_data['name']}...")
                         text_items = extract_text_with_coordinates(pdf_bytes)
                         
                         if len(text_items) == 0:
@@ -832,36 +642,16 @@ def main():
                             continue
                         
                         # Get floor level
-                        progress_bar.progress(file_progress * 0.3, text=f"Identifying floor level in {file_data['name']}...")
+                        progress_bar.progress(file_progress * 0.5, text=f"Identifying floor level in {file_data['name']}...")
                         floor_level = extract_floor_level(text_items, client)
                         
                         # Group rooms
-                        progress_bar.progress(file_progress * 0.5, text=f"Grouping room data in {file_data['name']}...")
+                        progress_bar.progress(file_progress * 0.8, text=f"Grouping room data in {file_data['name']}...")
                         rooms = group_text_with_claude(text_items, client)
-                        
-                        # Debug: Show what was extracted
-                        with st.expander(f"🔍 Debug: Extracted rooms from {file_data['name']}", expanded=False):
-                            st.write(f"**Total rooms found:** {len(rooms)}")
-                            room_summary = {}
-                            for room in rooms:
-                                room_type = room.get('room_name', 'Unknown')
-                                room_summary[room_type] = room_summary.get(room_type, 0) + 1
-                            st.write("**Room counts:**")
-                            for room_type, count in sorted(room_summary.items()):
-                                st.write(f"- {room_type}: {count}")
-                            st.json(rooms[:5])  # Show first 5 rooms as JSON
                         
                         # Add floor level
                         for room in rooms:
                             room["level"] = floor_level
-                        
-                        # Check if any rooms are missing areas
-                        missing_areas = sum(1 for room in rooms if not room.get("area") or room.get("area").strip() == "")
-                        
-                        if missing_areas > 0:
-                            progress_bar.progress(file_progress * 0.7, text=f"Calculating {missing_areas} missing areas using Vision AI...")
-                            st.info(f"🔍 Found {missing_areas} rooms without areas in {file_data['name']}. Using Vision AI to calculate...")
-                            rooms = calculate_missing_areas(pdf_bytes, rooms, client)
                         
                         all_rooms.extend(rooms)
                         progress_bar.progress(file_progress, text=f"Completed {file_data['name']}")
@@ -882,35 +672,16 @@ def main():
                 st.markdown("### 📋 Preview")
                 preview_data = []
                 for room in all_rooms[:10]:
-                    area_str = room.get("area", "")
                     preview_data.append({
                         "Level": room.get("level", ""),
                         "Room Name": room.get("room_name", ""),
                         "Room Type": room.get("space_type", ""),
-                        "Area": area_str,
-                        "Source": "Calculated*" if area_str.endswith("*") else "Provided" if area_str else "Missing"
+                        "Area": room.get("area", "")
                     })
                 st.dataframe(preview_data, use_container_width=True)
                 
                 if len(all_rooms) > 10:
                     st.info(f"Showing 10 of {len(all_rooms)} rooms")
-                
-                # Show statistics
-                total_rooms = len(all_rooms)
-                calculated_areas = sum(1 for r in all_rooms if r.get("area", "").endswith("*"))
-                provided_areas = sum(1 for r in all_rooms if r.get("area", "") and not r.get("area", "").endswith("*"))
-                missing_areas = total_rooms - calculated_areas - provided_areas
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Rooms", total_rooms)
-                with col2:
-                    st.metric("Provided Areas", provided_areas)
-                with col3:
-                    st.metric("Calculated Areas*", calculated_areas)
-                
-                if missing_areas > 0:
-                    st.warning(f"⚠️ {missing_areas} rooms still missing area data")
                 
                 # Download button
                 excel_file = create_excel(all_rooms)
