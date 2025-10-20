@@ -323,7 +323,7 @@ def group_text_with_claude(text_items, client):
     
     text_summary = "\n".join(text_list)
     
-    prompt = f"""You are analyzing text extracted from an architectural floor plan PDF. Below is ALL the text found in the document with their coordinates.
+            prompt = f"""You are analyzing text extracted from an architectural floor plan PDF. Below is ALL the text found in the document with their coordinates.
 
 Your task: Group this text into room records. Each room typically has 2-3 text labels near each other (room name, space type, area).
 
@@ -333,27 +333,37 @@ EXTRACTED TEXT (with coordinates):
 STRICT RULES:
 1. You can ONLY use text from the list above - you cannot add any text that isn't listed
 2. Group text items that are close together spatially (similar x,y coordinates)
-3. Identify which text is:
-   - room_name: specific room identifier (e.g., "Classroom 05", "Store", "Pupil WC")
-   - room_number: if there's a separate number/code (e.g., "05", "101", "A-23")
+3. CRITICAL: Look for ALL instances of room labels - if you see "WC" appearing 10 times in different locations, that means there are 10 separate WC rooms that must each be included
+4. Identify which text is:
+   - room_name: specific room identifier (e.g., "Classroom 05", "Store", "WC", "Shower")
+   - room_number: if there's a separate number/code (e.g., "05", "101", "D-11")
    - space_type: category/function (e.g., "Teaching Space", "Circulation", "Hygiene Area")  
-   - area: size with m² (e.g., "56 m²", "13 m²")
-4. Ignore legend text, title blocks, scale bars, and other non-room labels
-5. Skip text that clearly isn't labeling a room space
-6. If you cannot confidently identify what a text item represents, don't include it
+   - area: size with m² (e.g., "56 m²", "13 m²", "2500", "2400")
+5. If you see repeated room types (like multiple "WC" or "Shower" labels), each one is a SEPARATE room
+6. Room numbers or door numbers (like "D-11", "D-12", "W-14") can help distinguish between similar rooms
+7. Ignore legend text, title blocks, scale bars, and other non-room labels
+8. Skip text that clearly isn't labeling a room space
+9. If you cannot confidently identify what a text item represents, don't include it
 
 QUALITY CHECKS:
 - Does each room_name actually appear in the extracted text list above?
 - Are you grouping text that is spatially close together?
 - Did you avoid including legend categories as room names?
+- Did you include ALL instances of repeated room types (all WCs, all Showers, etc.)?
 
 Return ONLY valid JSON array:
 [
   {{
-    "room_name": "Classroom 05",
-    "room_number": "05",
-    "space_type": "Teaching Space",
-    "area": "56 m²"
+    "room_name": "WC",
+    "room_number": "D-11",
+    "space_type": "Hygiene",
+    "area": "2400"
+  }},
+  {{
+    "room_name": "WC",
+    "room_number": "D-12",
+    "space_type": "Hygiene",
+    "area": null
   }}
 ]
 
@@ -425,28 +435,46 @@ ROOMS NEEDING AREA CALCULATIONS:
 {room_list}
 
 INSTRUCTIONS:
-1. First, identify the drawing scale (e.g., 1:50, 1:100)
+1. First, identify the drawing scale (e.g., 1:50, 1:100) - look for text like "Scale @ A1 1:50" or scale bars
 2. For each room listed above:
    - Locate the room on the plan by its name/label
-   - Identify the room boundaries (walls/partitions)
+   - CRITICAL: Identify the room boundaries using the THICK BLACK LINES that represent walls (not thin lines, not dimension lines, not dashed lines)
+   - The thick black perimeter lines are the actual walls
+   - Measure INSIDE the thick black wall lines (internal dimensions only)
    - Measure the room dimensions using the scale
+   - For rectangular rooms: length × width
+   - For irregular rooms: break into rectangles and sum the areas
    - Calculate the floor area in square meters
 3. If a room cannot be measured accurately, explain why
+
+WALL IDENTIFICATION GUIDE:
+- Walls = THICK BLACK SOLID LINES forming the room perimeter
+- NOT walls = thin lines (dimensions), dashed lines (door swings), furniture outlines
+- Measure from inside edge to inside edge of the thick black wall lines
+- Example: If walls are 200mm thick, subtract wall thickness from overall dimensions
 
 Return ONLY valid JSON:
 {{
   "scale": "1:50",
   "rooms": [
     {{
-      "room_name": "Office",
-      "area_m2": 12.5,
-      "calculation": "Measured 5.0m x 2.5m = 12.5m²",
+      "room_name": "WC",
+      "room_number": "D-11",
+      "area_m2": 2.4,
+      "calculation": "Measured internal: 2.0m x 1.2m = 2.4m² (inside thick black walls)",
       "confidence": "high"
+    }},
+    {{
+      "room_name": "Shower",
+      "room_number": null,
+      "area_m2": 1.8,
+      "calculation": "Measured internal: 1.5m x 1.2m = 1.8m² (inside thick black walls)",
+      "confidence": "medium"
     }},
     {{
       "room_name": "Store",
       "area_m2": null,
-      "calculation": "Unable to determine - boundaries unclear",
+      "calculation": "Unable to determine - wall boundaries unclear or room not visible",
       "confidence": "unable"
     }}
   ]
@@ -454,8 +482,10 @@ Return ONLY valid JSON:
 
 CRITICAL:
 - Only calculate areas for the rooms listed above
+- ALWAYS measure INSIDE the thick black wall lines (internal dimensions)
 - Be as accurate as possible with measurements
 - If room boundaries are irregular, break into rectangles
+- State your measurements in the calculation field (e.g., "2.0m x 1.2m = 2.4m²")
 - Confidence levels: "high", "medium", "low", "unable"
 - Return null for area_m2 if unable to measure"""
 
@@ -808,6 +838,18 @@ def main():
                         # Group rooms
                         progress_bar.progress(file_progress * 0.5, text=f"Grouping room data in {file_data['name']}...")
                         rooms = group_text_with_claude(text_items, client)
+                        
+                        # Debug: Show what was extracted
+                        with st.expander(f"🔍 Debug: Extracted rooms from {file_data['name']}", expanded=False):
+                            st.write(f"**Total rooms found:** {len(rooms)}")
+                            room_summary = {}
+                            for room in rooms:
+                                room_type = room.get('room_name', 'Unknown')
+                                room_summary[room_type] = room_summary.get(room_type, 0) + 1
+                            st.write("**Room counts:**")
+                            for room_type, count in sorted(room_summary.items()):
+                                st.write(f"- {room_type}: {count}")
+                            st.json(rooms[:5])  # Show first 5 rooms as JSON
                         
                         # Add floor level
                         for room in rooms:
