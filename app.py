@@ -563,13 +563,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Reset button
-    if st.button("🔄 Reset Uploader", help="Click if uploads are failing"):
-        st.cache_data.clear()
-        st.session_state.clear()
-        st.rerun()
-    
-    # RESTORED: Multiple file uploader
     uploaded_files = st.file_uploader(
         "Choose PDF files",
         type=['pdf'],
